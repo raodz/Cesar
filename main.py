@@ -1,5 +1,8 @@
 import os
+import time
+import pandas as pd
 from operations.cesar import Cypher
+from operations.db_functions import db_to_df, df_to_db
 
 
 class Facade:
@@ -11,22 +14,30 @@ class Facade:
             "3": self._multiple_encrypt,
             "4": self._multiple_decrypt,
             "5": self._show_history,
-            "9": self._end_program,
+            "6": self._end_program,
         }
-        self._no_path = True
+        self.__history_col_names = [
+            "txt",
+            "shift",
+            "direction",
+            "shifted_txt",
+            "time_of_crypting",
+        ]
+        self.__no_history_path = True
 
-        # pomysł: zamiast od razu zapisywać do pliku, tworzyć najpierw tabelę w Pythonie
-        # i na koniec ją opcjonalnie przepisywać do pliku
-
-        while self._no_path:
-            self.history = input(
+        while self.__no_history_path:
+            self._history_file = input(
+                "Welcome to Cesar 1.0!\n"
                 "Provide a path to the history file or press "
-                "ENTER to create a new one"
+                "ENTER to create a new history"
             )
-            if os.path.isfile(self.history) or self.history == "":
-                self._no_path = False
-        if self.history == "":
-            self.history = Cypher.create_history()
+            if os.path.isfile(self._history_file) or self._history_file == "":
+                self.__no_history_path = False
+
+        if self._history_file == "":
+            self.history = pd.DataFrame(columns=self.__history_col_names)
+        else:
+            self.history = db_to_df(self._history_file)
 
         self._loop()
 
@@ -37,12 +48,13 @@ class Facade:
 
     def _show_menu(self):
         menu = (
-            "Welcome to Cesar 1.0!\n"
+            "MENU\n"
             "1. Encrypt single text\n"
             "2. Decrypt single text\n"
             "3. Encrypt many texts from .json file\n"
             "4. Decrypt many texts from .json file\n"
             "5. Show history\n"
+            "6. Exit\n"
         )
         print(menu)
 
@@ -57,35 +69,39 @@ class Facade:
     def _single_encrypt(self):
         original_txt = input("Provide the text to encrypt")
         shift = int(input("Provide the shift of the encryption"))
-        shifted_txt = Cypher().cesar(original_txt, shift, history_file=self.history)
-        # problem: operacja nie dodaje się do historii, mimo że w samym cesar.py działa
+        shifted_txt = Cypher.cesar(original_txt, shift, self.history)
         print(f"{original_txt} shifted by {shift}: {shifted_txt}")
 
     def _single_decrypt(self):
         original_txt = input("Provide the text to decrypt")
         shift = int(input("Provide the shift of the decryption"))
-        shifted_txt = Cypher().cesar(
-            original_txt, shift, encrypting_mode=False, history_file=self.history
+        shifted_txt = Cypher.cesar(
+            original_txt, shift, self.history, encrypting_mode=False
         )
         print(f"{original_txt} shifted back by {shift}: {shifted_txt}")
 
     def _multiple_encrypt(self):
         file_path = input("Provide the file path")
-        Cypher().crypt_from_json(file_path, history_file=self.history)
+        Cypher.crypt_from_json(file_path, self.history)
 
     def _multiple_decrypt(self):
         file_path = input("Provide the file path")
-        Cypher().crypt_from_json(
-            file_path, encrypting_mode=False, history_file=self.history
-        )
+        Cypher.crypt_from_json(file_path, self.history, encrypting_mode=False)
 
     def _show_history(self):
-        pass
+        print(self.history)
 
     def _end_program(self):
-        # pytasz uzywtnika czy zapisac historie (Y/n)
-        # KOmunikat jakis
-
+        self._save = ""
+        while self._save not in ("Y", "n"):
+            self._save = input(
+                "Do you want to save the operations history as a " "database? (Y/n)"
+            )
+            if self._save == "Y":
+                db_name = f"dbs//history{int(time.time())}.db"
+                df_to_db(self.history, db_name)
+                print(f"History saved in the {db_name} file")
+        print("Thank you for using Cesar 1.0!")
         self.__is_running = False
 
 
