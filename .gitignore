@@ -1,5 +1,6 @@
 venv
 .idea
 dbs
-__pycache__
-.pytest_cache
+operations/__pycache__
+tests/__pycache__
+tests/.pytest_cache
