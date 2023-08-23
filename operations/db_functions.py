@@ -1,30 +1,41 @@
 import sqlite3
+import pandas as pd
 
 
-def connect_to_db(path):
-    con = sqlite3.connect(path)
-    return con
+def db_to_df(db: str):
+    conn = sqlite3.connect(db)
+
+    sql_query = pd.read_sql_query(
+        """
+                                   SELECT
+                                   *
+                                   FROM History
+                                   """,
+        conn,
+    )
+
+    df = pd.DataFrame(
+        sql_query,
+        columns=["txt", "shift", "direction", "shifted_txt", "time_of_crypting"],
+    )
+    return df
 
 
-def create_table(con):
-    query = (
+def df_to_db(df: pd.DataFrame, db: str):
+    conn = sqlite3.connect(db)
+    c = conn.cursor()
+
+    c.execute(
         "CREATE TABLE IF NOT EXISTS History(id INTEGER PRIMARY KEY, txt TEXT "
-        "NOT NULL, shift INTEGER, direction TEXT, shifted_txt TEXT NOT NULL);"
+        "NOT NULL, shift INTEGER, direction TEXT, shifted_txt TEXT NOT NULL, "
+        "time_of_crypting DATETIME);"
     )
-    con.execute(query)
-    con.commit()
+    conn.commit()
 
+    df.to_sql("History", conn, if_exists="replace", index=False)
 
-def add_to_history(
-    db_name: str, txt: str, shift: str, direction: str, shifted_txt: str
-):
-    con = connect_to_db(db_name)
-    # jak zrobić, żeby dbs były we właściwym folderze?
-    # f'dbs//{db_name}' nie działa
-    create_table(con)
-    query = (
-        f"INSERT INTO History(txt, shift, direction, shifted_txt) VALUES({txt}, "
-        f"{shift}, {direction}, {shifted_txt})"
+    c.execute(
+        """
+    SELECT * FROM History
+              """
     )
-    con.execute(query)
-    con.commit()
