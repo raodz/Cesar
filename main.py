@@ -98,6 +98,8 @@ class Facade:
                 "Do you want to save the operations history as a " "database? (Y/n)"
             )
             if self._save == "Y":
+                if not os.path.exists("dbs"):
+                    os.mkdir("dbs")
                 db_name = f"dbs//history{int(time.time())}.db"
                 df_to_db(self.history, db_name)
                 print(f"History saved in the {db_name} file")
